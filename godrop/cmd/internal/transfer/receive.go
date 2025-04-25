@@ -1,6 +1,8 @@
 package transfer
 
 import (
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -8,39 +10,55 @@ import (
 )
 
 func ReceiveFile(conn *websocket.Conn, passphrase string) error {
-	_, name, err := conn.ReadMessage()
+	file, err := prepareOutputFile(conn)
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 
-	cleanName := filepath.Base(string(name))
-	f, err := os.Create("received_" + cleanName)
+	return receiveEncryptedStream(conn, file, passphrase)
+}
+
+func prepareOutputFile(conn *websocket.Conn) (*os.File, error) {
+	_, nameMsg, err := conn.ReadMessage()
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("read filename: %w", err)
 	}
-	defer f.Close()
 
+	cleanName := filepath.Base(string(nameMsg))
+	outPath := "received_" + cleanName
+
+	file, err := os.Create(outPath)
+	if err != nil {
+		return nil, fmt.Errorf("create file: %w", err)
+	}
+
+	return file, nil
+}
+
+func receiveEncryptedStream(conn *websocket.Conn, file *os.File, passphrase string) error {
 	for {
 		_, nonce, err := conn.ReadMessage()
 		if err != nil {
-			break
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure) || err == io.EOF {
+				break
+			}
+			return fmt.Errorf("read nonce: %w", err)
 		}
 
 		_, encryptedData, err := conn.ReadMessage()
 		if err != nil {
-			break
+			return fmt.Errorf("read encrypted data: %w", err)
 		}
 
 		plaintext, err := Decrypt(nonce, encryptedData, passphrase)
 		if err != nil {
-			return err
+			return fmt.Errorf("decrypt: %w", err)
 		}
 
-		_, err = f.Write(plaintext)
-		if err != nil {
-			return err
+		if _, err := file.Write(plaintext); err != nil {
+			return fmt.Errorf("write file: %w", err)
 		}
 	}
-
 	return nil
 }
