@@ -20,7 +20,8 @@ func SendFile(filePath, peerAddr, passphrase string) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+
+	defer closeWebSocketGracefully(conn)
 
 	if err := sendFileName(conn, stat.Name()); err != nil {
 		return err
@@ -87,4 +88,9 @@ func streamFile(conn *websocket.Conn, file *os.File, passphrase string, bar *pro
 		}
 	}
 	return nil
+}
+
+func closeWebSocketGracefully(conn *websocket.Conn) {
+	_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	conn.Close()
 }

@@ -24,7 +24,7 @@ func main() {
 		fmt.Printf("  [%d] %s\n", i+1, p)
 	}
 
-	fmt.Print("Choose a peer to send to [1]: ")
+	fmt.Print("Choose a peer to send to: ")
 	reader := bufio.NewReader(os.Stdin)
 	choiceStr, _ := reader.ReadString('\n')
 	choiceStr = strings.TrimSpace(choiceStr)

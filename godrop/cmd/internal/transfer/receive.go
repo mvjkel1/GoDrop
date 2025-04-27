@@ -48,6 +48,9 @@ func receiveEncryptedStream(conn *websocket.Conn, file *os.File, passphrase stri
 
 		_, encryptedData, err := conn.ReadMessage()
 		if err != nil {
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure) || err == io.EOF {
+				break
+			}
 			return fmt.Errorf("read encrypted data: %w", err)
 		}
 
